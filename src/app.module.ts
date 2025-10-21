@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from '@starment/auth';
 import { getConfigModule } from '@starment/config';
-import { CoreModule } from '@starment/core';
+import { AuthGuard, CoreModule } from '@starment/core';
 import { HealthModule } from '@starment/health';
 import { StarmentLoggerModule } from '@starment/logger';
 import { ProfileModule } from '@starment/profile';
@@ -22,6 +23,13 @@ import { VideoTestModule } from './features/video-test/video-test.module';
 
     AuthModule,
     ProfileModule,
+  ],
+  providers: [
+    // Global authentication guard (secure by default)
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
   ],
 })
 export class AppModule {}

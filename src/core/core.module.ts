@@ -33,14 +33,10 @@ import { RequestTracingMiddleware } from './middlewares';
     }),
   ],
   providers: [
-    // Global guards (order matters!)
+    // Global guards and interceptors
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard, // 1st: Rate limiting
-    },
-    {
-      provide: APP_GUARD,
-      useClass: AuthGuard, // 2nd: Authentication (secure by default)
+      useClass: ThrottlerGuard,
     },
     {
       provide: APP_FILTER,
