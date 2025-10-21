@@ -51,6 +51,7 @@ import { RequestTracingMiddleware } from './middlewares';
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
 
     // Auth guards (also registered for direct injection if needed)
+    AuthGuard, // Authentication only
     AuthJwtGuard, // Combined auth + roles + user types (legacy)
     RolesGuard, // Role-based authorization
     UserTypesGuard, // User type-based authorization
