@@ -13,6 +13,7 @@ import { setSupabaseDaoMetrics } from '@starment/supabase';
 import { PinoLogger } from 'nestjs-pino';
 
 import { GlobalHttpExceptionFilter } from './filters';
+import { AuthJwtGuard } from './guards';
 import { HttpMetricsInterceptor, LoggerInterceptor, TimeoutInterceptor } from './interceptors';
 import { RequestTracingMiddleware } from './middlewares';
 
@@ -43,6 +44,13 @@ import { RequestTracingMiddleware } from './middlewares';
     { provide: APP_INTERCEPTOR, useClass: LoggerInterceptor },
     { provide: APP_INTERCEPTOR, useClass: TimeoutInterceptor },
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
+
+    // Auth guard (explicitly registered for proper DI)
+    AuthJwtGuard,
+  ],
+  exports: [
+    // Export guard so other modules can use it
+    AuthJwtGuard,
   ],
 })
 export class CoreModule implements NestModule, OnModuleInit {

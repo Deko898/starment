@@ -1,13 +1,17 @@
 import { Module } from '@nestjs/common';
 
 import { AuthController } from './auth.controller';
-import { AuthJwtGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
+/**
+ * Auth feature module
+ * Handles authentication operations (login, register, logout, refresh)
+ *
+ * Note: AuthJwtGuard is in @starment/core, not here.
+ *       IAuthProvider is provided globally by SupabaseAuthModule.
+ */
 @Module({
-  imports: [],
   controllers: [AuthController],
-  providers: [AuthService, AuthJwtGuard],
-  exports: [AuthService, AuthJwtGuard],
+  providers: [AuthService],
 })
 export class AuthModule {}

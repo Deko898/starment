@@ -8,10 +8,8 @@ import {
   ApiUnauthorizedResponse,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { CurrentUser } from '@starment/core';
+import { AuthJwtGuard, CurrentUser } from '@starment/core';
 import type { RequestUser } from '@starment/shared';
-
-import { AuthJwtGuard } from '../auth/auth.guard';
 import { ProfileResponse } from './models/profile-response.model';
 import { ProfileService } from './profile.service';
 

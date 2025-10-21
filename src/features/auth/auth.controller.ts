@@ -9,10 +9,8 @@ import {
   ApiUnauthorizedResponse,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { CurrentUser } from '@starment/core';
+import { AuthJwtGuard, CurrentUser } from '@starment/core';
 import type { RequestUser } from '@starment/shared';
-
-import { AuthJwtGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshTokenDto, RegisterCreatorDto, RegisterDto } from './dto';
 import { LoginResponse } from './models';
