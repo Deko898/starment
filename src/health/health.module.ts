@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { SupabaseDaoModule } from '@starment/supabase-dao';
+import { SupabaseDaoModule } from '@starment/supabase';
 
 import { HealthController } from './health.controller';
 import { HealthRepository } from './health.repository';

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { BaseApiService } from '@starment/core';
-import { Profile } from '@starment/supabase-dao';
+import { Profile } from '@starment/supabase';
 
 import { ProfileResponse } from './models';
 import { ProfileRepository } from './profile.repository';

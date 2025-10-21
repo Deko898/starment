@@ -5,7 +5,7 @@ import { CoreModule } from '@starment/core';
 import { HealthModule } from '@starment/health';
 import { StarmentLoggerModule } from '@starment/logger';
 import { ProfileModule } from '@starment/profile';
-import { SupabaseCoreModule } from '@starment/supabase-dao';
+import { SupabaseAuthModule, SupabaseCoreModule } from '@starment/supabase';
 
 import { VideoTestModule } from './features/video-test/video-test.module';
 
@@ -15,6 +15,7 @@ import { VideoTestModule } from './features/video-test/video-test.module';
     StarmentLoggerModule.forRoot(),
     CoreModule,
     SupabaseCoreModule,
+    SupabaseAuthModule, // Provides AUTH_PROVIDER globally
     HealthModule,
 
     VideoTestModule,

@@ -4,4 +4,5 @@
 export * from './supabase-core.module';
 export * from './supabase-dao.decorators';
 export * from './supabase-dao.module';
+export * from './supabase-auth.module';
 export * from './supabase-dao.tokens';

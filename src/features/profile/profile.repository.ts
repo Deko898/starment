@@ -5,7 +5,7 @@ import {
   DbSingleResponse,
   makeTableToken,
   Profile,
-} from '@starment/supabase-dao';
+} from '@starment/supabase';
 
 import { CreatorProfileWithRelations } from './models';
 import { CREATOR_PROFILE_QUERY } from './queries';

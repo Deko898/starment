@@ -1,25 +1,25 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
-import { ForbiddenException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY, USER_TYPES_KEY } from '@starment/core';
-import {
-  getDisplayName,
-  getRole,
-  getUserType,
-  type RequestWithUser,
-  Role,
-  type SupabaseUser,
-  UserType,
-} from '@starment/shared';
-import { SUPABASE_ANON } from '@starment/supabase-dao';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { type RequestWithUser, Role, UserType } from '@starment/shared';
+import { AUTH_PROVIDER, type IAuthProvider } from '@starment/supabase';
 
+/**
+ * Auth guard - provider-agnostic
+ * Uses IAuthProvider interface instead of SupabaseClient directly
+ */
 @Injectable()
 export class AuthJwtGuard implements CanActivate {
   constructor(
-    @Inject(SUPABASE_ANON)
-    private readonly supabase: SupabaseClient,
+    @Inject(AUTH_PROVIDER)
+    private readonly authProvider: IAuthProvider,
     private readonly reflector: Reflector,
   ) {}
 
@@ -37,42 +37,22 @@ export class AuthJwtGuard implements CanActivate {
 
     // If AuthContextInterceptor already populated req.user, skip auth check
     if (!req.user) {
-      const authHeader: string | string[] | undefined =
-        req.headers.authorization ?? req.headers.authorization;
-
-      // Properly type the bearer token extraction with type guard
-      let bearer: string | undefined;
-      if (Array.isArray(authHeader)) {
-        bearer = typeof authHeader[0] === 'string' ? authHeader[0] : undefined;
-      } else if (typeof authHeader === 'string') {
-        bearer = authHeader;
-      }
-
-      const accessToken: string | undefined = bearer?.startsWith('Bearer ')
-        ? bearer.slice(7)
-        : undefined;
+      const accessToken = this.extractToken(req);
 
       if (!accessToken) {
         throw new UnauthorizedException('Missing bearer token');
       }
 
-      const { data, error } = await this.supabase.auth.getUser(accessToken);
-      if (error) {
-        throw new UnauthorizedException('Invalid or expired token');
-      }
-
-      const user = data.user as SupabaseUser;
-      const role = getRole(user);
-      const user_type = getUserType(user);
-      const display_name = getDisplayName(user);
+      // Use auth provider to validate token (provider-agnostic)
+      const user = await this.authProvider.validateToken(accessToken);
 
       req.user = {
         id: user.id,
         jwt: accessToken,
-        role,
-        user_type,
-        email: user.email ?? undefined,
-        display_name,
+        role: user.role,
+        user_type: user.userType,
+        email: user.email,
+        display_name: user.displayName,
       };
     }
 
@@ -92,5 +72,23 @@ export class AuthJwtGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  /**
+   * Extract bearer token from request headers
+   * @private
+   */
+  private extractToken(req: RequestWithUser): string | undefined {
+    const authHeader = req.headers.authorization;
+
+    // Handle array case (shouldn't happen but Express types allow it)
+    let bearer: string | undefined;
+    if (Array.isArray(authHeader)) {
+      bearer = typeof authHeader[0] === 'string' ? authHeader[0] : undefined;
+    } else if (typeof authHeader === 'string') {
+      bearer = authHeader;
+    }
+
+    return bearer?.startsWith('Bearer ') ? bearer.slice(7) : undefined;
   }
 }

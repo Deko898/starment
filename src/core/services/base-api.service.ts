@@ -12,7 +12,7 @@ import type {
   InsertOf,
   RowOf,
   UpdateOf,
-} from '@starment/supabase-dao';
+} from '@starment/supabase';
 
 import { BaseService } from './base.service';
 

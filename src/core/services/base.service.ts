@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import type { DbArrayResponse, DbSingleResponse } from '@starment/supabase-dao';
+import type { DbArrayResponse, DbSingleResponse } from '@starment/supabase';
 
 import type { DbError } from '../error';
 

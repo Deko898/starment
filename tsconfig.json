@@ -29,7 +29,7 @@
       "@starment/health": ["src/health/index"],
       "@starment/metrics": ["src/metrics/index"],
 
-      "@starment/supabase-dao": ["src/infra/supabase-dao/index"],
+      "@starment/supabase": ["src/infra/supabase/index"],
       "@starment/video": ["src/infra/video/index"],
       "@starment/payments": ["src/infra/payments/index"],
 

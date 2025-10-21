@@ -4,7 +4,7 @@ import {
   type DatabaseAdapter,
   HealthCheck,
   makeTableToken,
-} from '@starment/supabase-dao';
+} from '@starment/supabase';
 
 @Injectable()
 export class HealthRepository extends BaseRepository<HealthCheck> {

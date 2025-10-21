@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { SupabaseDaoModule } from '@starment/supabase-dao';
+import { SupabaseDaoModule } from '@starment/supabase';
 
 import { ProfileController } from './profile.controller';
 import { ProfileRepository } from './profile.repository';

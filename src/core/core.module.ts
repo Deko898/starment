@@ -9,7 +9,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { MetricsModule, MetricsService } from '@starment/metrics';
-import { setSupabaseDaoMetrics } from '@starment/supabase-dao';
+import { setSupabaseDaoMetrics } from '@starment/supabase';
 import { PinoLogger } from 'nestjs-pino';
 
 import { GlobalHttpExceptionFilter } from './filters';
