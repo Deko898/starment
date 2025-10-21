@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiExtraModels,
@@ -8,14 +8,13 @@ import {
   ApiUnauthorizedResponse,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { AuthJwtGuard, CurrentUser } from '@starment/core';
+import { CurrentUser } from '@starment/core';
 import type { RequestUser } from '@starment/shared';
 import { ProfileResponse } from './models/profile-response.model';
 import { ProfileService } from './profile.service';
 
 @ApiTags('profile')
 @Controller({ path: 'profile', version: '1' })
-@UseGuards(AuthJwtGuard)
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 

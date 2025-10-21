@@ -33,9 +33,14 @@ import { RequestTracingMiddleware } from './middlewares';
     }),
   ],
   providers: [
+    // Global guards (order matters!)
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: ThrottlerGuard, // 1st: Rate limiting
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard, // 2nd: Authentication (secure by default)
     },
     {
       provide: APP_FILTER,
@@ -45,9 +50,8 @@ import { RequestTracingMiddleware } from './middlewares';
     { provide: APP_INTERCEPTOR, useClass: TimeoutInterceptor },
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
 
-    // Auth guards (explicitly registered for proper DI)
+    // Auth guards (also registered for direct injection if needed)
     AuthJwtGuard, // Combined auth + roles + user types (legacy)
-    AuthGuard, // Authentication only
     RolesGuard, // Role-based authorization
     UserTypesGuard, // User type-based authorization
   ],

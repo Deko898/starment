@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -9,7 +9,7 @@ import {
   ApiUnauthorizedResponse,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { AuthJwtGuard, CurrentUser } from '@starment/core';
+import { CurrentUser, Public } from '@starment/core';
 import type { RequestUser } from '@starment/shared';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshTokenDto, RegisterCreatorDto, RegisterDto } from './dto';
@@ -21,6 +21,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /** 🔹 Register a new user */
+  @Public()
   @Post('register')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Register with email/password' })
@@ -48,6 +49,7 @@ export class AuthController {
     return this.authService.register(dto.email, dto.password);
   }
 
+  @Public()
   @Post('register/creator')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Register a creator (with extended profile info)' })
@@ -78,6 +80,7 @@ export class AuthController {
   }
 
   /** 🔹 Login existing user */
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Log in with email/password' })
@@ -89,6 +92,7 @@ export class AuthController {
   }
 
   /** 🔹 Refresh expired access token */
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token with refresh_token' })
@@ -100,7 +104,6 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AuthJwtGuard)
   @ApiBearerAuth('bearer')
   @ApiOperation({ summary: 'Logout' })
   @ApiOkResponse({ description: 'User successfully logged out' })

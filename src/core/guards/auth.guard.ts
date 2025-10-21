@@ -5,21 +5,35 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { type RequestWithUser } from '@starment/shared';
 import { AUTH_PROVIDER, type IAuthProvider } from '@starment/supabase';
 
+import { IS_PUBLIC_KEY } from '../decorators';
+
 /**
  * Authentication guard - validates JWT and populates req.user
- * Use this guard to ensure the user is authenticated
+ * When used as global guard, routes can be marked as public with @Public() decorator
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     @Inject(AUTH_PROVIDER)
     private readonly authProvider: IAuthProvider,
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
+    // Check if route is marked as public
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      ctx.getHandler(),
+      ctx.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true; // Skip authentication for public routes
+    }
+
     const req = ctx.switchToHttp().getRequest<RequestWithUser>();
 
     if (req.user) {
