@@ -43,6 +43,15 @@ export interface AppEnvironmentVariables {
   TWILIO_PHONE_NUMBER?: string;
   TWILIO_TOKEN_TTL_SECONDS?: string;
 
+  // Redis/Cache configuration
+  REDIS_HOST?: string;
+  REDIS_PORT?: string;
+  REDIS_PASSWORD?: string;
+  REDIS_DB?: string;
+  REDIS_URL?: string;
+  CACHE_TTL?: string; // Default TTL in seconds
+  CACHE_MAX?: string; // Max items in cache
+
   // Optional environment variables (with defaults)
   REQUEST_TIMEOUT?: string;
   MAX_REQUEST_SIZE?: string;
@@ -141,6 +150,15 @@ export class Environment {
       TWILIO_API_KEY_SID: env.TWILIO_API_KEY_SID!,
       TWILIO_API_KEY_SECRET: env.TWILIO_API_KEY_SECRET!,
       TWILIO_PHONE_NUMBER: env.TWILIO_PHONE_NUMBER, // optional
+
+      // Redis/Cache configuration (all optional with defaults)
+      REDIS_HOST: env.REDIS_HOST,
+      REDIS_PORT: env.REDIS_PORT,
+      REDIS_PASSWORD: env.REDIS_PASSWORD,
+      REDIS_DB: env.REDIS_DB,
+      REDIS_URL: env.REDIS_URL,
+      CACHE_TTL: env.CACHE_TTL,
+      CACHE_MAX: env.CACHE_MAX,
     };
   }
 
@@ -241,6 +259,35 @@ export class Environment {
 
   get twilioTokenTtlSeconds(): number {
     return parseInt(this._env.TWILIO_TOKEN_TTL_SECONDS ?? '3600', 10);
+  }
+
+  // ------------- REDIS/CACHE HELPERS -------------
+  get redisHost(): string {
+    return this._env.REDIS_HOST ?? 'localhost';
+  }
+
+  get redisPort(): number {
+    return parseInt(this._env.REDIS_PORT ?? '6379', 10);
+  }
+
+  get redisPassword(): string | undefined {
+    return this._env.REDIS_PASSWORD;
+  }
+
+  get redisDb(): number {
+    return parseInt(this._env.REDIS_DB ?? '0', 10);
+  }
+
+  get redisUrl(): string | undefined {
+    return this._env.REDIS_URL;
+  }
+
+  get cacheTtl(): number {
+    return parseInt(this._env.CACHE_TTL ?? '300', 10); // 5 minutes default
+  }
+
+  get cacheMax(): number {
+    return parseInt(this._env.CACHE_MAX ?? '100', 10);
   }
 }
 
