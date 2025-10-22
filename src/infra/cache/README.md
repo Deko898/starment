@@ -4,29 +4,42 @@ Redis caching layer for Starment API following official NestJS patterns.
 
 ## Architecture
 
-This implementation uses **NestJS cache-manager** (official caching solution) with Redis store:
+This implementation uses **NestJS cache-manager** with **Keyv** (modern key-value storage):
 
 ```
 src/infra/cache/
-├── interfaces/          # Provider-agnostic interfaces (custom abstraction)
+├── interfaces/          # Provider-agnostic interfaces
 │   └── cache-provider.interface.ts
 ├── adapters/            # Wrapper around NestJS cache-manager
 │   └── redis-cache.adapter.ts
-├── config/              # Module configuration
-│   └── cache.module.ts
-└── decorators/          # Custom utility decorators (optional)
+├── config/              # Module configuration with multi-store
+│   └── cache.module.ts             (CacheableMemory + KeyvRedis)
+└── decorators/          # Custom utility decorators
     └── cached.decorator.ts
 ```
 
-**Important**: Uses `cache-manager v5` which uses **milliseconds** for TTL (breaking change from v4).
+**Important**: Uses modern **Keyv-based** caching with multi-store support. TTL is in **milliseconds** (Keyv standard).
+
+**Features:**
+- ✅ Multi-store: Memory (L1) + Redis (L2)
+- ✅ Fast in-memory cache with LRU eviction
+- ✅ Persistent Redis backup
+- ✅ Automatic failover between stores
 
 ## Installation
 
 ### 1. Install Dependencies
 
 ```bash
-npm install @nestjs/cache-manager cache-manager cache-manager-redis-yet redis
+npm install @nestjs/cache-manager cache-manager @keyv/redis keyv cacheable
 ```
+
+**Packages:**
+- `@nestjs/cache-manager` - NestJS caching module
+- `cache-manager` - Core caching library
+- `@keyv/redis` - Redis store adapter for Keyv
+- `keyv` - Simple key-value storage with multi-adapter support
+- `cacheable` - In-memory cache with LRU support
 
 ### 2. Environment Configuration
 
@@ -34,16 +47,19 @@ Add to `.env`:
 
 ```bash
 # Redis Configuration (all optional with sensible defaults)
-REDIS_HOST=localhost        # Default: localhost
-REDIS_PORT=6379            # Default: 6379
-REDIS_PASSWORD=            # Optional
-REDIS_DB=0                 # Default: 0
-REDIS_URL=                 # Alternative to host/port (takes precedence)
+REDIS_HOST=localhost              # Default: localhost
+REDIS_PORT=6379                  # Default: 6379
+REDIS_PASSWORD=                  # Optional
+REDIS_DB=0                       # Default: 0
+REDIS_URL=                       # Full connection string (takes precedence)
+                                # Example: redis://localhost:6379
 
 # Cache Configuration
-CACHE_TTL=300             # Default TTL in seconds (5 minutes)
-CACHE_MAX=100             # Max items in cache
+CACHE_TTL=300000                # Default TTL in milliseconds (5 minutes)
+CACHE_MAX=5000                  # Max items in memory cache (LRU size)
 ```
+
+**Note:** CACHE_TTL is in **milliseconds** (Keyv standard). 300000ms = 5 minutes.
 
 ### 3. Setup Redis
 
@@ -467,7 +483,8 @@ Examples:
 5. **Invalidate on writes** - Clear cache when data changes
 6. **Monitor cache hit rate** - Optimize what you cache
 7. **Handle cache failures gracefully** - App should work without cache
-8. **Remember: cache-manager v5 uses milliseconds** - `set(key, value, 60000)` = 60 seconds
+8. **TTL is in milliseconds** - `set(key, value, 60000)` = 60 seconds
+9. **Multi-store automatic** - Memory (fast) + Redis (persistent) both checked automatically
 
 ---
 
@@ -499,19 +516,11 @@ Examples:
 - Configure Redis maxmemory policy
 
 **TTL not working:**
-- Ensure you're using milliseconds for direct `CACHE_MANAGER` calls
+- Ensure you're using milliseconds for `CACHE_MANAGER` calls
 - Use seconds for `CACHE_PROVIDER` (converted internally)
-- cache-manager v5 changed from seconds to milliseconds
+- Keyv uses milliseconds by default
 
----
-
-## **Migration from cache-manager v4 to v5**
-
-If upgrading from v4:
-
-- **Change**: TTL now in milliseconds instead of seconds
-- **Before**: `set(key, value, 300)` = 300 seconds
-- **After**: `set(key, value, 300)` = 300 milliseconds
-- **Fix**: Multiply by 1000: `set(key, value, 300 * 1000)` = 300 seconds
-
-Our `CACHE_PROVIDER` abstraction handles this conversion for you.
+**Multi-store not working:**
+- Check both memory and Redis are configured
+- Memory cache fills first (L1), Redis is backup (L2)
+- Check Redis connection if only memory works

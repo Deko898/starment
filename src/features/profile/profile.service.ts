@@ -29,7 +29,8 @@ export class ProfileService extends BaseApiService<Profile> {
     const profile = this.unwrap(result, 'Creator profile');
     const response = ProfileResponse.fromDb(profile);
 
-    // Store in cache with 5 minute TTL
+    // Store in cache with 5 minute TTL (300 seconds)
+    // Note: CACHE_PROVIDER accepts seconds, converts to ms internally
     await this.cache.set(cacheKey, response, 300);
 
     return response;

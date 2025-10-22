@@ -49,8 +49,8 @@ export interface AppEnvironmentVariables {
   REDIS_PASSWORD?: string;
   REDIS_DB?: string;
   REDIS_URL?: string;
-  CACHE_TTL?: string; // Default TTL in seconds
-  CACHE_MAX?: string; // Max items in cache
+  CACHE_TTL?: string; // Default TTL in milliseconds (Keyv standard)
+  CACHE_MAX?: string; // Max items in memory cache (LRU size)
 
   // Optional environment variables (with defaults)
   REQUEST_TIMEOUT?: string;
@@ -283,11 +283,11 @@ export class Environment {
   }
 
   get cacheTtl(): number {
-    return parseInt(this._env.CACHE_TTL ?? '300', 10); // 5 minutes default
+    return parseInt(this._env.CACHE_TTL ?? '300000', 10); // 5 minutes (300000ms) default
   }
 
   get cacheMax(): number {
-    return parseInt(this._env.CACHE_MAX ?? '100', 10);
+    return parseInt(this._env.CACHE_MAX ?? '5000', 10); // 5000 items default (LRU size)
   }
 }
 
