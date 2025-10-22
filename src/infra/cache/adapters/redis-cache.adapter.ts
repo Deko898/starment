@@ -6,7 +6,13 @@ import type { ICacheProvider } from '../interfaces/cache-provider.interface';
 
 /**
  * Redis cache adapter implementing ICacheProvider
- * Wraps @nestjs/cache-manager with cache-manager-redis-yet under the hood
+ * Wraps official @nestjs/cache-manager (cache-manager v5 with Redis store)
+ *
+ * This provides a provider-agnostic abstraction layer while using
+ * the official NestJS caching solution under the hood.
+ *
+ * Note: cache-manager v5 uses milliseconds for TTL.
+ * This adapter accepts seconds and converts to milliseconds for consistency.
  */
 @Injectable()
 export class RedisCacheAdapter implements ICacheProvider, OnModuleDestroy {

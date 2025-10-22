@@ -9,7 +9,9 @@ import { CACHE_PROVIDER } from '../interfaces/cache-provider.interface';
 
 /**
  * Global cache module
- * Provides cache functionality throughout the application
+ * Provides cache functionality throughout the application using NestJS cache-manager
+ *
+ * Uses cache-manager v5 (TTL in milliseconds)
  *
  * Environment variables:
  * - REDIS_URL: Redis connection URL (takes precedence)
@@ -17,13 +19,19 @@ import { CACHE_PROVIDER } from '../interfaces/cache-provider.interface';
  * - REDIS_PORT: Redis port (default: 6379)
  * - REDIS_PASSWORD: Redis password (optional)
  * - REDIS_DB: Redis database number (default: 0)
- * - CACHE_TTL: Default TTL in seconds (default: 300)
+ * - CACHE_TTL: Default TTL in seconds (default: 300) - converted to ms internally
  * - CACHE_MAX: Max items in cache (default: 100)
+ *
+ * Usage:
+ * 1. HTTP Routes: Use CacheInterceptor with @CacheKey() and @CacheTTL() decorators
+ * 2. Services: Inject CACHE_MANAGER directly from @nestjs/cache-manager
+ * 3. Custom abstraction: Inject CACHE_PROVIDER for provider-agnostic code
  */
 @Global()
 @Module({
   imports: [
     NestCacheModule.registerAsync<RedisClientOptions>({
+      isGlobal: true,
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => {
@@ -32,7 +40,7 @@ import { CACHE_PROVIDER } from '../interfaces/cache-provider.interface';
         const redisPort = parseInt(config.get<string>('REDIS_PORT', '6379'), 10);
         const redisPassword = config.get<string>('REDIS_PASSWORD');
         const redisDb = parseInt(config.get<string>('REDIS_DB', '0'), 10);
-        const cacheTtl = parseInt(config.get<string>('CACHE_TTL', '300'), 10); // 5 minutes
+        const cacheTtlSeconds = parseInt(config.get<string>('CACHE_TTL', '300'), 10); // 5 minutes
         const cacheMax = parseInt(config.get<string>('CACHE_MAX', '100'), 10);
 
         return {
@@ -46,10 +54,9 @@ import { CACHE_PROVIDER } from '../interfaces/cache-provider.interface';
             url: redisUrl,
             password: redisPassword,
             database: redisDb,
-            ttl: cacheTtl * 1000, // Convert seconds to ms
           }),
           max: cacheMax,
-          ttl: cacheTtl * 1000, // Convert seconds to ms
+          ttl: cacheTtlSeconds * 1000, // cache-manager v5 uses milliseconds
         };
       },
     }),
