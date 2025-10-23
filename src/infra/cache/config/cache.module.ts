@@ -4,18 +4,25 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import KeyvRedis from '@keyv/redis';
 import { Keyv } from 'keyv';
 import { CacheableMemory } from 'cacheable';
+import { RedisCacheAdapter } from '../adapters/redis-cache.adapter';
 
 /**
- * Global cache module using modern Keyv-based caching
+ * Token for injecting the cache provider
+ * Follows Starment's infrastructure abstraction pattern (similar to AUTH_SERVICE, etc.)
+ */
+export const CACHE_PROVIDER = Symbol('CACHE_PROVIDER');
+
+/**
+ * Global cache module using modern Keyv-based caching with provider abstraction.
  *
- * This is just a configuration wrapper around NestJS CacheModule.
- * Use CACHE_MANAGER directly from @nestjs/cache-manager in your services.
+ * Provides both native CACHE_MANAGER and abstracted CACHE_PROVIDER following Starment patterns.
  *
  * Features:
- * - Multi-store support (memory + Redis)
- * - Memory store serves as fast L1 cache
- * - Redis serves as persistent L2 cache
- * - TTL in milliseconds (Keyv standard)
+ * - Multi-store support (memory L1 + Redis L2)
+ * - Memory store serves as fast L1 cache (~1-2ms)
+ * - Redis serves as persistent L2 cache (~5-10ms)
+ * - Provider-agnostic interface (ICacheProvider)
+ * - TTL in seconds for CACHE_PROVIDER (milliseconds for CACHE_MANAGER)
  *
  * Environment variables:
  * - REDIS_URL: Redis connection URL (e.g., redis://localhost:6379)
@@ -28,7 +35,8 @@ import { CacheableMemory } from 'cacheable';
  *
  * Usage:
  * 1. HTTP Routes: @UseInterceptors(CacheInterceptor) with @CacheKey() and @CacheTTL()
- * 2. Services: @Inject(CACHE_MANAGER) private cacheManager: Cache
+ * 2. Services (Recommended): @Inject(CACHE_PROVIDER) private cache: ICacheProvider
+ * 3. Services (Direct): @Inject(CACHE_MANAGER) private cacheManager: Cache
  */
 @Global()
 @Module({
@@ -64,5 +72,13 @@ import { CacheableMemory } from 'cacheable';
       },
     }),
   ],
+  providers: [
+    RedisCacheAdapter,
+    {
+      provide: CACHE_PROVIDER,
+      useExisting: RedisCacheAdapter,
+    },
+  ],
+  exports: [CACHE_PROVIDER, RedisCacheAdapter],
 })
 export class CacheModule {}
