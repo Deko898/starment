@@ -33,6 +33,7 @@
       "@starment/video": ["src/infra/video/index"],
       "@starment/payments": ["src/infra/payments/index"],
       "@starment/cache": ["src/infra/cache/index"],
+      "@starment/idempotency": ["src/infra/idempotency/index"],
 
       "@starment/shared": ["src/shared/index"],
 

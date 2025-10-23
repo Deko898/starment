@@ -5,6 +5,7 @@ import { CacheModule } from '@starment/cache';
 import { getConfigModule } from '@starment/config';
 import { AuthGuard, CoreModule } from '@starment/core';
 import { HealthModule } from '@starment/health';
+import { IdempotencyModule } from '@starment/idempotency';
 import { StarmentLoggerModule } from '@starment/logger';
 import { ProfileModule } from '@starment/profile';
 import { SupabaseAuthModule, SupabaseCoreModule } from '@starment/supabase';
@@ -19,6 +20,7 @@ import { VideoTestModule } from './features/video-test/video-test.module';
     SupabaseCoreModule,
     SupabaseAuthModule, // Provides AUTH_PROVIDER globally
     CacheModule, // Provides CACHE_PROVIDER globally
+    IdempotencyModule, // Provides IdempotencyInterceptor
     HealthModule,
 
     VideoTestModule,
