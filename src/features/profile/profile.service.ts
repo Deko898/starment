@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { CACHE_PROVIDER, type ICacheProvider } from '@starment/cache';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { BaseApiService } from '@starment/core';
 import { Profile } from '@starment/supabase';
 
@@ -10,7 +11,7 @@ import { ProfileRepository } from './profile.repository';
 export class ProfileService extends BaseApiService<Profile> {
   constructor(
     private readonly profileRepo: ProfileRepository,
-    @Inject(CACHE_PROVIDER) private readonly cache: ICacheProvider,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {
     super(profileRepo);
   }
@@ -19,7 +20,7 @@ export class ProfileService extends BaseApiService<Profile> {
     const cacheKey = `profile:creator:${userId}`;
 
     // Try to get from cache first
-    const cached = await this.cache.get<ProfileResponse>(cacheKey);
+    const cached = await this.cacheManager.get<ProfileResponse>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -29,9 +30,8 @@ export class ProfileService extends BaseApiService<Profile> {
     const profile = this.unwrap(result, 'Creator profile');
     const response = ProfileResponse.fromDb(profile);
 
-    // Store in cache with 5 minute TTL (300 seconds)
-    // Note: CACHE_PROVIDER accepts seconds, converts to ms internally
-    await this.cache.set(cacheKey, response, 300);
+    // Store in cache with 5 minute TTL (300000ms)
+    await this.cacheManager.set(cacheKey, response, 300000);
 
     return response;
   }

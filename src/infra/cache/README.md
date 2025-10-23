@@ -8,14 +8,8 @@ This implementation uses **NestJS cache-manager** with **Keyv** (modern key-valu
 
 ```
 src/infra/cache/
-├── interfaces/          # Provider-agnostic interfaces
-│   └── cache-provider.interface.ts
-├── adapters/            # Wrapper around NestJS cache-manager
-│   └── redis-cache.adapter.ts
-├── config/              # Module configuration with multi-store
-│   └── cache.module.ts             (CacheableMemory + KeyvRedis)
-└── decorators/          # Custom utility decorators
-    └── cached.decorator.ts
+└── config/
+    └── cache.module.ts    # Global cache configuration (multi-store)
 ```
 
 **Important**: Uses modern **Keyv-based** caching with multi-store support. TTL is in **milliseconds** (Keyv standard).
@@ -25,6 +19,7 @@ src/infra/cache/
 - ✅ Fast in-memory cache with LRU eviction
 - ✅ Persistent Redis backup
 - ✅ Automatic failover between stores
+- ✅ Native NestJS patterns (no custom abstractions)
 
 ## Installation
 
@@ -80,9 +75,9 @@ brew services start redis
 
 ## Usage
 
-## **🎯 Recommended: Official NestJS Approach**
+## **🎯 HTTP Route Caching**
 
-### Auto-Caching HTTP Routes
+### Auto-Caching with CacheInterceptor
 
 Use `CacheInterceptor` to automatically cache HTTP responses:
 
@@ -103,7 +98,7 @@ export class UsersController {
 
   @Get(':id')
   @CacheKey('custom-user-key') // Override cache key
-  @CacheTTL(20) // Override TTL to 20 seconds (cache-manager v5 uses milliseconds internally)
+  @CacheTTL(20000) // Override TTL to 20 seconds (20000ms)
   async findOne(@Param('id') id: string) {
     // Custom cache key and TTL
     return this.usersService.findOne(id);
@@ -116,7 +111,7 @@ export class UsersController {
 ```typescript
 @Controller('products')
 @UseInterceptors(CacheInterceptor)
-@CacheTTL(30) // All routes cached for 30 seconds
+@CacheTTL(30000) // All routes cached for 30 seconds
 export class ProductsController {
   @Get()
   findAll() {
@@ -124,7 +119,7 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @CacheTTL(60) // Override: 60 seconds for this route
+  @CacheTTL(60000) // Override: 60 seconds for this route
   findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
   }
@@ -150,26 +145,6 @@ import { CacheInterceptor } from '@nestjs/cache-manager';
   ],
 })
 export class AppModule {}
-```
-
-### Custom Cache Keys
-
-Override default route-based keys:
-
-```typescript
-import { CacheInterceptor, CacheKey } from '@nestjs/cache-manager';
-
-@Controller('posts')
-@UseInterceptors(CacheInterceptor)
-export class PostsController {
-  @Get(':id')
-  @CacheKey('post_detail') // Static key
-  findOne(@Param('id') id: string) {
-    return this.postsService.findOne(id);
-  }
-
-  // For dynamic keys, extend CacheInterceptor and override trackBy()
-}
 ```
 
 ### Custom Cache Interceptor (Advanced)
@@ -213,9 +188,9 @@ export class ProfileController {
 
 ---
 
-## **Manual Cache Management in Services**
+## **🔧 Service-Level Caching**
 
-### Option 1: Direct CACHE_MANAGER Injection (NestJS Official)
+### Manual Cache Management with CACHE_MANAGER
 
 ```typescript
 import { Injectable, Inject } from '@nestjs/common';
@@ -240,7 +215,7 @@ export class UserService {
     // Fetch from DB
     const user = await this.userRepo.findById(userId);
 
-    // Store in cache (TTL in milliseconds for cache-manager v5)
+    // Store in cache (TTL in milliseconds)
     await this.cacheManager.set(cacheKey, user, 300000); // 5 minutes = 300000ms
 
     return user;
@@ -262,32 +237,40 @@ export class UserService {
 }
 ```
 
-### Option 2: Custom ICacheProvider Abstraction (Provider-Agnostic)
-
-For code that might switch cache providers:
+### Real-World Example: ProfileService
 
 ```typescript
-import { Injectable, Inject } from '@nestjs/common';
-import { CACHE_PROVIDER, ICacheProvider } from '@starment/cache';
+import { Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
-export class UserService {
+export class ProfileService extends BaseApiService<Profile> {
   constructor(
-    @Inject(CACHE_PROVIDER) private readonly cache: ICacheProvider,
-  ) {}
+    private readonly profileRepo: ProfileRepository,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {
+    super(profileRepo);
+  }
 
-  async getUser(userId: string): Promise<User> {
-    const cacheKey = `user:${userId}`;
+  async getCreatorProfile(userId: string): Promise<ProfileResponse> {
+    const cacheKey = `profile:creator:${userId}`;
 
-    const cached = await this.cache.get<User>(cacheKey);
-    if (cached) return cached;
+    // Try to get from cache first
+    const cached = await this.cacheManager.get<ProfileResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
-    const user = await this.userRepo.findById(userId);
+    // Cache miss - fetch from database
+    const result = await this.profileRepo.getCreatorProfile(userId);
+    const profile = this.unwrap(result, 'Creator profile');
+    const response = ProfileResponse.fromDb(profile);
 
-    // TTL in seconds (converted to ms internally)
-    await this.cache.set(cacheKey, user, 300);
+    // Store in cache with 5 minute TTL (300000ms)
+    await this.cacheManager.set(cacheKey, response, 300000);
 
-    return user;
+    return response;
   }
 }
 ```
@@ -303,14 +286,14 @@ async getProduct(id: string): Promise<Product> {
   const key = `product:${id}`;
 
   // 1. Try cache
-  let product = await this.cache.get<Product>(key);
+  let product = await this.cacheManager.get<Product>(key);
 
   // 2. Cache miss - fetch from DB
   if (!product) {
     product = await this.productRepo.findById(id);
 
-    // 3. Store in cache
-    await this.cache.set(key, product, 600); // 10 minutes
+    // 3. Store in cache (10 minutes)
+    await this.cacheManager.set(key, product, 600000);
   }
 
   return product;
@@ -325,7 +308,7 @@ async updateProduct(id: string, data: UpdateProductDto): Promise<Product> {
   const product = await this.productRepo.update(id, data);
 
   // 2. Update cache immediately
-  await this.cache.set(`product:${id}`, product, 600);
+  await this.cacheManager.set(`product:${id}`, product, 600000);
 
   return product;
 }
@@ -339,122 +322,47 @@ async deleteProduct(id: string): Promise<void> {
   await this.productRepo.delete(id);
 
   // 2. Invalidate cache
-  await this.cache.del(`product:${id}`);
-  await this.cache.del(`products:list`); // Also clear list cache
+  await this.cacheManager.del(`product:${id}`);
+  await this.cacheManager.del(`products:list`); // Also clear list cache
 }
 ```
 
-### Pattern 4: Bulk Operations
+### Pattern 4: Wrap Pattern (Automatic Cache)
 
 ```typescript
-// Get multiple users
-const users = await this.cache.mget<User>('user:1', 'user:2', 'user:3');
-
-// Set multiple values
-await this.cache.mset([
-  { key: 'user:1', value: user1, ttl: 300 },
-  { key: 'user:2', value: user2, ttl: 300 },
-]);
-```
-
-### Pattern 5: Rate Limiting
-
-```typescript
-async checkRateLimit(userId: string): Promise<boolean> {
-  const key = `ratelimit:${userId}`;
-
-  // Increment counter
-  const count = await this.cache.incr(key);
-
-  if (count === 1) {
-    // First request - set expiry to 60 seconds
-    await this.cache.set(key, count, 60);
-  }
-
-  // Allow up to 100 requests per minute
-  return count <= 100;
+async getExpensiveData(id: string): Promise<Data> {
+  // Automatically cache the result of the callback
+  return this.cacheManager.wrap(
+    `expensive:${id}`,
+    async () => {
+      // This function only runs on cache miss
+      return this.performExpensiveOperation(id);
+    },
+    300000 // TTL: 5 minutes
+  );
 }
 ```
-
----
-
-## **Custom Decorators (Optional)**
-
-We provide custom decorators for cleaner service code:
-
-```typescript
-import { Injectable, Inject } from '@nestjs/common';
-import { CACHE_PROVIDER, ICacheProvider, Cached, CacheInvalidate } from '@starment/cache';
-
-@Injectable()
-export class UserService {
-  constructor(
-    @Inject(CACHE_PROVIDER) private readonly cache: ICacheProvider,
-  ) {}
-
-  // Automatically cache method result
-  @Cached((userId) => `user:${userId}`, 300)
-  async getUser(userId: string): Promise<User> {
-    return this.userRepo.findById(userId);
-  }
-
-  // Automatically invalidate cache after update
-  @CacheInvalidate((userId) => `user:${userId}`)
-  async updateUser(userId: string, data: UpdateUserDto): Promise<User> {
-    return this.userRepo.update(userId, data);
-  }
-
-  // Invalidate multiple keys
-  @CacheInvalidate((userId) => [`user:${userId}`, `users:list`])
-  async deleteUser(userId: string): Promise<void> {
-    await this.userRepo.delete(userId);
-  }
-}
-```
-
-**Note**: These require `cache` property injected as `CACHE_PROVIDER`.
 
 ---
 
 ## **API Reference**
 
-### CACHE_MANAGER Methods (Official)
+### CACHE_MANAGER Methods
 
 ```typescript
 interface Cache {
+  // Basic operations
   get<T>(key: string): Promise<T | undefined>;
   set(key: string, value: unknown, ttl?: number): Promise<void>;
   del(key: string): Promise<void>;
   reset(): Promise<void>;
+
+  // Wrap pattern (automatic caching)
   wrap<T>(key: string, fn: () => Promise<T>, ttl?: number): Promise<T>;
 }
 ```
 
-### ICacheProvider Methods (Custom Abstraction)
-
-```typescript
-interface ICacheProvider {
-  // Basic operations
-  get<T>(key: string): Promise<T | undefined>;
-  set<T>(key: string, value: T, ttl?: number): Promise<void>; // TTL in seconds
-  del(key: string): Promise<void>;
-  has(key: string): Promise<boolean>;
-  reset(): Promise<void>;
-
-  // Bulk operations
-  mget<T>(...keys: string[]): Promise<(T | undefined)[]>;
-  mset<T>(entries: Array<{ key: string; value: T; ttl?: number }>): Promise<void>;
-  delMany(keys: string[]): Promise<void>;
-  delPattern(pattern: string): Promise<void>;
-
-  // Numeric operations
-  incr(key: string, delta?: number): Promise<number>;
-  decr(key: string, delta?: number): Promise<number>;
-
-  // Utility
-  ttl(key: string): Promise<number>;
-}
-```
+**Important**: TTL is in **milliseconds**. Example: `300000` = 5 minutes.
 
 ---
 
@@ -478,13 +386,34 @@ Examples:
 
 1. **Use CacheInterceptor for HTTP routes** - Automatic, route-based caching
 2. **Always set TTL** - Prevent stale data
-3. **Use namespaced keys** - Avoid collisions
+3. **Use namespaced keys** - Avoid collisions (e.g., `user:123` not just `123`)
 4. **Cache immutable data longer** - Static data can have higher TTL
 5. **Invalidate on writes** - Clear cache when data changes
 6. **Monitor cache hit rate** - Optimize what you cache
 7. **Handle cache failures gracefully** - App should work without cache
 8. **TTL is in milliseconds** - `set(key, value, 60000)` = 60 seconds
 9. **Multi-store automatic** - Memory (fast) + Redis (persistent) both checked automatically
+
+---
+
+## **How Multi-Store Works**
+
+```
+Request → Check Memory (L1) → Found? Return ✓
+              ↓
+          Not Found
+              ↓
+       Check Redis (L2) → Found? Store in Memory + Return ✓
+              ↓
+          Not Found
+              ↓
+      Fetch from DB → Store in Both Caches + Return
+```
+
+**Benefits:**
+- **L1 (Memory)**: ~1-2ms response time
+- **L2 (Redis)**: ~5-10ms response time
+- **DB**: ~30-100ms response time
 
 ---
 
@@ -502,25 +431,72 @@ Examples:
 
 **Cache not working:**
 - Check Redis connection: `docker ps` or `redis-cli ping`
-- Verify environment variables
+- Verify environment variables in `.env`
 - Check logs for connection errors
 
 **Stale data:**
-- Reduce TTL
+- Reduce TTL values
 - Implement cache invalidation on updates
-- Use `delPattern()` for bulk invalidation
+- Consider using write-through pattern
 
 **Memory issues:**
-- Reduce `CACHE_MAX`
+- Reduce `CACHE_MAX` in environment variables
 - Lower TTL values
-- Configure Redis maxmemory policy
+- Configure Redis maxmemory policy: `redis-cli config set maxmemory-policy allkeys-lru`
 
 **TTL not working:**
-- Ensure you're using milliseconds for `CACHE_MANAGER` calls
-- Use seconds for `CACHE_PROVIDER` (converted internally)
+- Ensure you're using **milliseconds** for all `set()` calls
 - Keyv uses milliseconds by default
+- Example: 5 minutes = `300000` (not `300`)
 
 **Multi-store not working:**
-- Check both memory and Redis are configured
+- Check both memory and Redis are configured in cache.module.ts
 - Memory cache fills first (L1), Redis is backup (L2)
 - Check Redis connection if only memory works
+- Use `redis-cli monitor` to see if Redis is receiving commands
+
+---
+
+## **Migration from Legacy Cache**
+
+If you're migrating from an older cache implementation:
+
+1. **Replace custom providers with CACHE_MANAGER**:
+   ```typescript
+   // Old
+   @Inject(CACHE_PROVIDER) private cache: ICacheProvider
+
+   // New
+   @Inject(CACHE_MANAGER) private cacheManager: Cache
+   ```
+
+2. **Update TTL from seconds to milliseconds**:
+   ```typescript
+   // Old
+   await this.cache.set(key, value, 300); // 300 seconds
+
+   // New
+   await this.cacheManager.set(key, value, 300000); // 300000 milliseconds
+   ```
+
+3. **Replace custom decorators with native patterns**:
+   ```typescript
+   // Old
+   @Cached((id) => `user:${id}`, 300)
+   async getUser(id: string) { ... }
+
+   // New (manual caching in method body)
+   async getUser(id: string) {
+     const cached = await this.cacheManager.get(`user:${id}`);
+     if (cached) return cached;
+     // ... fetch and cache
+   }
+   ```
+
+---
+
+## **Additional Resources**
+
+- [Official NestJS Caching Documentation](https://docs.nestjs.com/techniques/caching)
+- [Keyv Documentation](https://github.com/jaredwray/keyv)
+- [cache-manager Documentation](https://github.com/node-cache-manager/node-cache-manager)

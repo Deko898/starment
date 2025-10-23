@@ -5,11 +5,11 @@ import KeyvRedis from '@keyv/redis';
 import { Keyv } from 'keyv';
 import { CacheableMemory } from 'cacheable';
 
-import { RedisCacheAdapter } from '../adapters/redis-cache.adapter';
-import { CACHE_PROVIDER } from '../interfaces/cache-provider.interface';
-
 /**
  * Global cache module using modern Keyv-based caching
+ *
+ * This is just a configuration wrapper around NestJS CacheModule.
+ * Use CACHE_MANAGER directly from @nestjs/cache-manager in your services.
  *
  * Features:
  * - Multi-store support (memory + Redis)
@@ -29,7 +29,6 @@ import { CACHE_PROVIDER } from '../interfaces/cache-provider.interface';
  * Usage:
  * 1. HTTP Routes: @UseInterceptors(CacheInterceptor) with @CacheKey() and @CacheTTL()
  * 2. Services: @Inject(CACHE_MANAGER) private cacheManager: Cache
- * 3. Custom abstraction: @Inject(CACHE_PROVIDER) private cache: ICacheProvider
  */
 @Global()
 @Module({
@@ -65,13 +64,5 @@ import { CACHE_PROVIDER } from '../interfaces/cache-provider.interface';
       },
     }),
   ],
-  providers: [
-    RedisCacheAdapter,
-    {
-      provide: CACHE_PROVIDER,
-      useExisting: RedisCacheAdapter,
-    },
-  ],
-  exports: [CACHE_PROVIDER, RedisCacheAdapter],
 })
 export class CacheModule {}
