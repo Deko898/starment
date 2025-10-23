@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { env } from '@starment/config';
 import { PinoLogger } from 'nestjs-pino';
 
-import { HealthRepository } from './health.repository';
+import { CacheHealthIndicator } from './indicators/cache-health.indicator';
+import { DatabaseHealthIndicator } from './indicators/database-health.indicator';
 import { CheckStatus } from './interfaces/check-status.enum';
 import { LivenessResponse } from './interfaces/liveness-response.interface';
 import { ReadinessResponse } from './interfaces/readiness-response.interface';
@@ -12,7 +13,8 @@ export class HealthService {
   private readonly startedAt = Date.now();
 
   constructor(
-    private readonly healthRepo: HealthRepository,
+    private readonly databaseHealth: DatabaseHealthIndicator,
+    private readonly cacheHealth: CacheHealthIndicator,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext('HealthService');
@@ -30,50 +32,55 @@ export class HealthService {
 
   async readiness(): Promise<ReadinessResponse> {
     // 1) Env sanity - using our type-safe environment validation
+    let envStatus: CheckStatus | string = CheckStatus.OK;
     try {
       // This will throw if required env vars are missing
       const appEnv = env();
       this.logger.info({ service: appEnv.serviceName }, 'Environment validation passed');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      envStatus = `Environment validation failed: ${errorMessage}`;
+
       return {
         status: CheckStatus.DEGRADED,
         service: env().serviceName,
         timestamp: new Date().toISOString(),
         checks: {
-          env: `Environment validation failed: ${errorMessage}`,
-          supabase: CheckStatus.SKIPPED,
+          env: envStatus,
+          database: CheckStatus.SKIPPED,
+          cache: CheckStatus.SKIPPED,
         },
       };
     }
 
-    // 2) Supabase probe via adapter (no direct client usage)
-    let supabaseStatus = CheckStatus.OK;
-    try {
-      const { data, error } = await this.healthRepo.findMany({
-        columns: '*',
-        limit: 1,
-      });
+    // 2) Run health checks in parallel for better performance
+    const [databaseStatus, cacheStatus] = await Promise.all([
+      this.databaseHealth.check(),
+      this.cacheHealth.check(),
+    ]);
 
-      if (error) {
-        this.logger.error({ error }, 'Supabase health check failed');
-        supabaseStatus = CheckStatus.ERROR;
-      } else {
-        this.logger.debug({ rowCount: data?.length }, 'Supabase health check passed');
-        supabaseStatus = CheckStatus.OK;
-      }
-    } catch (err) {
-      this.logger.error({ err }, 'Unexpected error during health check');
-      supabaseStatus = CheckStatus.ERROR;
+    // 3) Determine overall status
+    const hasErrors =
+      databaseStatus === CheckStatus.ERROR || cacheStatus === CheckStatus.ERROR;
+
+    const hasDegradation =
+      databaseStatus === CheckStatus.DEGRADED || cacheStatus === CheckStatus.DEGRADED;
+
+    let overallStatus = CheckStatus.OK;
+    if (hasErrors) {
+      overallStatus = CheckStatus.ERROR;
+    } else if (hasDegradation) {
+      overallStatus = CheckStatus.DEGRADED;
     }
 
     return {
-      status: supabaseStatus === CheckStatus.OK ? CheckStatus.OK : CheckStatus.DEGRADED,
+      status: overallStatus,
       service: env().serviceName,
       timestamp: new Date().toISOString(),
       checks: {
-        env: CheckStatus.OK,
-        supabase: supabaseStatus,
+        env: envStatus,
+        database: databaseStatus,
+        cache: cacheStatus,
       },
     };
   }
